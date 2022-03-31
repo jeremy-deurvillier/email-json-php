@@ -1,0 +1,23 @@
+{
+    "name": "jeremyd/emailjson",
+    "type": "library",
+    "description": "A small library for reading and writing e-mails.",
+    "keywords": ["e-mail", "mail", "imap", "json"],
+    "license": "GPL-3.0-or-later",
+    "homepage": "https://github.com/jeremy-deurvillier/email-json-php",
+    "authors": [
+	    {
+	    	"name": "Jérémy Deurvillier",
+	    	"homepage": "https://jeremy-deurvillier.com",
+	    	"role": "Developer"
+	    }
+    ],
+    "require": {
+	    "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "JeremyD\\EmailJSON\\": "src/"
+        }
+    }
+}
