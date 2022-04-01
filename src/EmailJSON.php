@@ -32,6 +32,7 @@ class EmailJSON {
 	public function __construct(String $email, String $password, Array $options) {
 		$isEmail = $this->_checkEmail($email);
 
+		$this->mailbox = null;
 		$this->_isReady = false;
 
 		if ($isEmail !== false) {
@@ -133,7 +134,13 @@ class EmailJSON {
 	* @return IMAP/Boolean Retourne une ressource IMAP si l'ouverture de la boîte mail à réussie, false sinon.
 	* */
 	private function _openBox(String $target) {
-		return imap_open($target, $this->getEmail(), $this->password);
+		if ($this->mailbox === null || $this->mailbox === false) {
+			$this->mailbox = imap_open($target, $this->getEmail(), $this->password);
+		}
+
+		if ($this->_mboxIsOpen($this->mailbox)) imap_reopen($this->mailbox, $target);
+
+		return $this->mailbox;
 	}
 
 	/* ** Ouvre une boîte mail pour test.
@@ -146,12 +153,28 @@ class EmailJSON {
 			$mailbox = $this->_openBox($this->_target);
 
 			if ($this->_mboxIsOpen($mailbox)) {
-				imap_close($mailbox);
-
 				return Format::json('Connect : logged in');
 			}
 
-			return ErrorManager::response('Connect : logged in failed');
+			return ErrorManager::response('connect_fail');
+		}
+
+		return ErrorManager::response('no_ready');
+	}
+
+	/* ** Ferme la connexion IMAP avec le serveur.
+	* */
+	public function disconnect() {
+		if ($this->_isReady) {
+			if ($this->_mboxIsOpen($this->mailbox)) {
+				$isClosed = imap_close($this->mailbox);
+
+				if ($isClosed) return Format::json($isClosed);
+
+				return ErrorManager::response('disconnect_fail');
+			}
+
+			return ErrorManager::response('connect_fail');
 		}
 
 		return ErrorManager::response('no_ready');

@@ -12,7 +12,8 @@ class ErrorManager {
 	/* ** DESCRIPTION DES CLÉS D'ERREUR :
 	* 	- unknown_error = Une erreur inconue est survenue
 	* 	- no_ready = Erreurs dans les paramètres de connexion (vérifiez l'e-mail, le mot de passe ...)
-	* 	- login_fail = Impossible de se connecter au serveur de mails
+	* 	- connect_fail = Impossible de se connecter au serveur de mails
+	* 	- disconnect_fail = imap_close() n'a pas réussie à fermer la boîte mails
 	* 	- get_folders_error = Impossible de récupérer les dossiers du serveur de mails
 	* 	- check_mailbox_fail = Impossible de vérifier la boîte mails courante
 	* 	- ping_mailbox_fail = Impossible de vérifier si la connexion au serveur est toujours active
