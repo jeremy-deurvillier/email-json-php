@@ -19,7 +19,7 @@ class Format {
 	* @param Any data Une donnée à formater en JSON.
 	* @param String status Une chaîne qui décrit le statut à renvoyé.
 	* */
-	static public function json($data, $status = 'OK') {
+	public static function json($data, $status = 'OK') {
 		return json_encode([
 			'status' => $status,
 			'data' => $data

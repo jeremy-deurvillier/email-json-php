@@ -8,17 +8,18 @@
 namespace JeremyD\EmailJSON;
 
 require('Format.php');
+require('ErrorManager.php');
 
 class EmailJSON {
 
 	private String $email; // Stocke l'adresse e-mail
 	private String $password; // Stocke le mot de passe
-	private Array $options; // Stocke les différentes options de connexion au serveur de mails.
+	private Array $options; // Stocke les différentes options de connexion au serveur de mails
 
-	private String $host; // Stocke le nom du serveur de mails.
-	private String $_target; // Stocke l'adresse du serveur de mails.
+	private String $host; // Stocke le nom du serveur de mails
+	private String $_target; // Stocke l'adresse du serveur de mails
 
-	private Bool $_isReady;
+	private Bool $_isReady; // Définit si le paramètres de connexion sont valides
 
 	private $mailbox; // Stocke la connexion IMAP issue de imap_open()
 
@@ -71,23 +72,6 @@ class EmailJSON {
 		if ($mailbox !== false) return true;
 
 		return false;
-	}
-
-	/* ** _lastError est utilisée comme valeur de retour de chaque méthode publique, si une erreur est rencontrée.
-	* La fonction renvoie toujours la dernière erreur rencontrée par les fonctions de l'extension IMAP de PHP.
-	*
-	* @param String msg Une clé sous forme de chaîne permettant de mieux comprendre l'erreur.
-	*
-	* @return JSON Une représentation JSON encodée dans une chaîne.
-	* */
-	private function _lastError(String $msg) {
-		return json_encode([
-			'status' => 'error',
-			'data' => [
-				'message' => $msg,
-				'last_error' => imap_last_error()
-			]
-		]);
 	}
 
 	/* ** Définit la propriété email.
@@ -167,10 +151,10 @@ class EmailJSON {
 				return Format::json('Connect : logged in');
 			}
 
-			return $this->_lastError('Connect : logged in failed');
+			return ErrorManager::response('Connect : logged in failed');
 		}
 
-		return $this->_lastError('Connect : no ready');
+		return ErrorManager::response('no_ready');
 	}
 
 	/* ** Récupère les dossiers présents dans la boîte mails.
@@ -202,10 +186,10 @@ class EmailJSON {
 				return Format::json($folders);
 			}
 
-			return $this->_lastError('Folders : no logged in');
+			return ErrorManager::response('Folders : no logged in');
 		}
 
-		return $this->_lastError('Folders : no ready');
+		return ErrorManager::response('no_ready');
 	}
 	
 	/* ** Vérifie les informations de la boîte mail courante.
@@ -225,10 +209,10 @@ class EmailJSON {
 			}
 
 			
-			return $this->_lastError('Check : no logged in');
+			return ErrorManager::response('Check : no logged in');
 		}
 
-		return $this->_lastError('check : no ready');
+		return ErrorManager::response('no_ready');
 	}
 
 	/* ** Vérifie que la connexion à la boîte mail est toujours active.
@@ -247,10 +231,10 @@ class EmailJSON {
 				return Format::json($ping);
 			}
 
-			return $this->_lastError('Ping : no logged in');
+			return ErrorManager::response('Ping : no logged in');
 		}
 
-		return $this->_lastError('Ping : no ready');
+		return ErrorManager::response('no_ready');
 	}
 
 	/* ** Récupère le quota d'une boîte mail.
@@ -271,10 +255,10 @@ class EmailJSON {
 				return format::json($quota);
 			}
 
-			return $this->_lastError('Quota : no logged in');
+			return ErrorManager::response('Quota : no logged in');
 		}
 
-		return $this->_lastError('Quota : no ready');
+		return ErrorManager::response('no_ready');
 	}
 
 	/* ** Récupère les entêtes des e-mails dans une intervalle.
@@ -305,10 +289,10 @@ class EmailJSON {
 				return Format::json($headers);
 			}
 
-			return $this->_lastError('Get mails : no logged in');
+			return ErrorManager::response('Get mails : no logged in');
 		}
 
-		return $this->_lastError('Get mails : no ready');
+		return ErrorManager::response('no_ready');
 	}
 	
 	/* ** Récupère un message dans une boîte mail, à partir de son uid.
@@ -330,10 +314,10 @@ class EmailJSON {
 				return Format::json($bodyMsg);
 			}
 
-			return $this->_lastError('Get message : no logged in');
+			return ErrorManager::response('Get message : no logged in');
 		}
 
-		return $this->_lastError('Get message : no ready');
+		return ErrorManager::response('no_ready');
 	}
 }
 
