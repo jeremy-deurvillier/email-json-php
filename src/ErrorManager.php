@@ -30,16 +30,22 @@ class ErrorManager {
 	* @param String error Une chaîne représentant l'erreur rencontrée.
 	* */
 	public static function response(String $error = 'unknown_error') {
-		return Format::json($error, 'KO');
+		$struct = self::_createStructure($error);
+
+		return Format::json($struct, 'KO');
 	}
 
-	/* ** Récupère le dernier message d'erreur rencontré par l'extension IMAP.
-	* 
-	* @return String La dernière erreur rencontrée par IMAP.
+	/* ** Créer la structure à renvoyée au script appelant.
+	*
+	* @param String error L'erreur personnalisée à ajouter à la structure.
 	* */
-	private function getLastIMAPError() {
-		return imap_last_error();
+	private function _createStructure($error) {
+		return [
+			'error_key' => $error,
+			'imap_last_error' => imap_last_error()
+		];
 	}
+
 }
 
 ?>
