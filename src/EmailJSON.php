@@ -180,6 +180,50 @@ class EmailJSON {
 		return ErrorManager::response('no_ready');
 	}
 
+	/* ** Récupère le quota d'une boîte mail.
+	* 
+	* @param String box Le nom d'une boîte mail (par exemple INBOX).
+	*
+	* @return Function La fonction _JSONResponse() si on récupère le quota sans erreur, la fonction _lastError() sinon.
+	* */
+	public function getQuota(String $box) {
+		if ($this->_isReady) {
+			if ($this->_mboxIsOpen($this->mailbox)) {
+				$quota = imap_get_quotaroot($this->mailbox, $box);
+
+				if ($quota !== false) {
+					return format::json($quota);
+				}
+
+				return ErrorManager::response('get_quota_fail');
+			}
+
+			return ErrorManager::response('connect_fail');
+		}
+
+		return ErrorManager::response('no_ready');
+	}
+
+	/* ** Vérifie que la connexion à la boîte mail est toujours active.
+	* 
+	* @return Function La fonction _JSONResponse() si la connexion est active, la fonction _lastError() dans tous les autres cas.
+	* */
+	public function ping() {
+		if ($this->_isReady) {
+			if ($this->_mboxIsOpen($this->mailbox)) {
+				$ping = imap_ping($this->mailbox);
+
+				if ($ping) return Format::json($ping);
+
+				return ErrorManager::response('ping_mailbox_fail');
+			}
+
+			return ErrorManager::response('connect_fail');
+		}
+
+		return ErrorManager::response('no_ready');
+	}
+
 	/* ** Récupère les dossiers présents dans la boîte mails.
 	* 
 	* imap_getmailboxes() renvoie un tableau d'objets (les dossiers). Chaque objet (dossier) possède une clé "attributes".
@@ -199,17 +243,17 @@ class EmailJSON {
 	* */
 	public function getFolders() {
 		if ($this->_isReady) {
-			$mailbox = $this->_openBox($this->_target);
+			if ($this->_mboxIsOpen($this->mailbox)) {
+				$folders = imap_getmailboxes($this->mailbox, $this->_target, '*');
 
-			if ($this->_mboxIsOpen($mailbox)) {
-				$folders = imap_getmailboxes($mailbox, $this->_target, '*');
+				if ($folders !== false) {
+					return Format::json($folders);
+				}
 
-				imap_close($mailbox);
-
-				return Format::json($folders);
+				return ErrorManager::response('get_folders_error');
 			}
 
-			return ErrorManager::response('Folders : no logged in');
+			return ErrorManager::response('connect_fail');
 		}
 
 		return ErrorManager::response('no_ready');
@@ -226,64 +270,19 @@ class EmailJSON {
 			if ($this->_mboxIsOpen($mailbox)) {
 				$check = imap_check($mailbox);
 
-				imap_close($mailbox);
+				if ($check !== false) {
+					return Format::json($check);
+				}
 
-				return Format::json($check);
+				return ErrorManager::response('check_mailbox_fail');
 			}
 
-			
-			return ErrorManager::response('Check : no logged in');
+			return ErrorManager::response('connect_fail');
 		}
 
 		return ErrorManager::response('no_ready');
 	}
-
-	/* ** Vérifie que la connexion à la boîte mail est toujours active.
-	* 
-	* @return Function La fonction _JSONResponse() si la connexion est active, la fonction _lastError() dans tous les autres cas.
-	* */
-	public function ping() {
-		if ($this->_isReady) {
-			$mailbox = $this->_openBox($this->_target);
-
-			if ($this->_mboxIsOpen($mailbox)) {
-				$ping = imap_ping($mailbox);
-
-				imap_close($mailbox);
-
-				return Format::json($ping);
-			}
-
-			return ErrorManager::response('Ping : no logged in');
-		}
-
-		return ErrorManager::response('no_ready');
-	}
-
-	/* ** Récupère le quota d'une boîte mail.
-	* 
-	* @param String box Le nom d'une boîte mail (par exemple INBOX).
-	*
-	* @return Function La fonction _JSONResponse() si on récupère le quota sans erreur, la fonction _lastError() sinon.
-	* */
-	public function getQuota(String $box) {
-		if ($this->_isReady) {
-			$mailbox = $this->_openBox($this->_target);
-
-			if ($this->_mboxIsOpen($mailbox)) {
-				$quota = imap_get_quotaroot($mailbox, $box);
-
-				imap_close($mailbox);
-
-				return format::json($quota);
-			}
-
-			return ErrorManager::response('Quota : no logged in');
-		}
-
-		return ErrorManager::response('no_ready');
-	}
-
+	
 	/* ** Récupère les entêtes des e-mails dans une intervalle.
 	* 
 	* @param String box Le nom du dossier dans lequel récupérer les entêtes.
@@ -307,12 +306,14 @@ class EmailJSON {
 
 				$headers = imap_fetch_overview($mailbox, $sequence, 0);
 
-				imap_close($mailbox);
+				if ($headers !== false) {
+					return Format::json($headers);
+				}
 
-				return Format::json($headers);
+				return ErrorManager::response('get_mails_fail');
 			}
 
-			return ErrorManager::response('Get mails : no logged in');
+			return ErrorManager::response('connect_fail');
 		}
 
 		return ErrorManager::response('no_ready');
@@ -332,12 +333,14 @@ class EmailJSON {
 			if ($this->_mboxIsOpen($mailbox)) {
 				$bodyMsg = imap_body($mailbox, $uid);
 
-				imap_close($mailbox);
+				if ($bodyMsg !== false) {
+					return Format::json($bodyMsg);
+				}
 
-				return Format::json($bodyMsg);
+				return ErrorManager('get_message_fail');
 			}
 
-			return ErrorManager::response('Get message : no logged in');
+			return ErrorManager::response('connect_fail');
 		}
 
 		return ErrorManager::response('no_ready');
