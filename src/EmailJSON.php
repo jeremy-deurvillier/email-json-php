@@ -7,6 +7,8 @@
 
 namespace JeremyD\EmailJSON;
 
+require('Format.php');
+
 class EmailJSON {
 
 	private String $email; // Stocke l'adresse e-mail
@@ -15,6 +17,8 @@ class EmailJSON {
 
 	private String $host; // Stocke le nom du serveur de mails.
 	private String $_target; // Stocke l'adresse du serveur de mails.
+
+	private Bool $_isReady;
 
 	private $mailbox; // Stocke la connexion IMAP issue de imap_open()
 
@@ -27,18 +31,17 @@ class EmailJSON {
 	public function __construct(String $email, String $password, Array $options) {
 		$isEmail = $this->_checkEmail($email);
 
+		$this->_isReady = false;
+
 		if ($isEmail !== false) {
 			$this->_setEmail($isEmail);
 			$this->_setPassword($password);
 			$this->_setOptions($options);
 			$this->_setHost($this->getEmail());
 			$this->_setTarget();
-			$this->connect();
 
-			return $this->_JSONResponse('Instance : email instance created successfully');
+			$this->_isReady = true;
 		}
-
-		return $this->_lastError('Instance : email is not valid');
 	}
 
 	/* ** Vérifie la présence du module IMAP.
@@ -68,19 +71,6 @@ class EmailJSON {
 		if ($mailbox !== false) return true;
 
 		return false;
-	}
-
-	/* ** _JSONResponse est utilisée comme valeur de retour de chaque méthode publique, si aucune erreur n'est rencontrée.
-	*
-	* @param Any data Une donnée qu'on souhaite retourner à l'utilisateur.
-	*
-	* @return JSON Une représentation JSON encodée dans une chaîne.
-	*  */
-	private function _JSONResponse($data) {
-		return json_encode([
-			'status' => 'ok',
-			'data' => $data
-		]);
 	}
 
 	/* ** _lastError est utilisée comme valeur de retour de chaque méthode publique, si une erreur est rencontrée.
@@ -168,15 +158,19 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si la boîte mail est ouverte sans erreur, la fonction _lastError() sinon.
 	* */
 	public function connect() {
-		$mailbox = $this->_openBox($this->_target);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			imap_close($mailbox);
+			if ($this->_mboxIsOpen($mailbox)) {
+				imap_close($mailbox);
 
-			return $this->_JSONResponse('Connect : logged in');
+				return Format::json('Connect : logged in');
+			}
+
+			return $this->_lastError('Connect : logged in failed');
 		}
 
-		return $this->_lastError('Connect : logged in failed');
+		return $this->_lastError('Connect : no ready');
 	}
 
 	/* ** Récupère les dossiers présents dans la boîte mails.
@@ -197,17 +191,21 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si on récupère le tableau de dossier(s) sans erreur, la fonction _lastError() sinon.
 	* */
 	public function getFolders() {
-		$mailbox = $this->_openBox($this->_target);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			$folders = imap_getmailboxes($mailbox, $this->_target, '*');
+			if ($this->_mboxIsOpen($mailbox)) {
+				$folders = imap_getmailboxes($mailbox, $this->_target, '*');
 
-			imap_close($mailbox);
+				imap_close($mailbox);
 
-			return $this->_JSONResponse($folders);
+				return Format::json($folders);
+			}
+
+			return $this->_lastError('Folders : no logged in');
 		}
 
-		return $this->_lastError('Folders : no logged in');
+		return $this->_lastError('Folders : no ready');
 	}
 	
 	/* ** Vérifie les informations de la boîte mail courante.
@@ -215,17 +213,22 @@ class EmailJSON {
 	* @param String box Le nom de la boîte mail courante.
 	* */
 	public function check($box) {
-		$mailbox = $this->_openBox($this->_target . $box);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target . $box);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			$check = imap_check($mailbox);
+			if ($this->_mboxIsOpen($mailbox)) {
+				$check = imap_check($mailbox);
 
-			imap_close($mailbox);
+				imap_close($mailbox);
 
-			return $this->_JSONResponse($check);
+				return Format::json($check);
+			}
+
+			
+			return $this->_lastError('Check : no logged in');
 		}
 
-		return $this->_lastError('Check : no logged in');
+		return $this->_lastError('check : no ready');
 	}
 
 	/* ** Vérifie que la connexion à la boîte mail est toujours active.
@@ -233,17 +236,21 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si la connexion est active, la fonction _lastError() dans tous les autres cas.
 	* */
 	public function ping() {
-		$mailbox = $this->_openBox($this->_target);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			$ping = imap_ping($mailbox);
+			if ($this->_mboxIsOpen($mailbox)) {
+				$ping = imap_ping($mailbox);
 
-			imap_close($mailbox);
+				imap_close($mailbox);
 
-			return $this->_JSONResponse($ping);
+				return Format::json($ping);
+			}
+
+			return $this->_lastError('Ping : no logged in');
 		}
 
-		return $this->_lastError('Ping : no logged in');
+		return $this->_lastError('Ping : no ready');
 	}
 
 	/* ** Récupère le quota d'une boîte mail.
@@ -253,17 +260,21 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si on récupère le quota sans erreur, la fonction _lastError() sinon.
 	* */
 	public function getQuota(String $box) {
-		$mailbox = $this->_openBox($this->_target);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			$quota = imap_get_quotaroot($mailbox, $box);
+			if ($this->_mboxIsOpen($mailbox)) {
+				$quota = imap_get_quotaroot($mailbox, $box);
 
-			imap_close($mailbox);
+				imap_close($mailbox);
 
-			return $this->_JSONResponse($quota);
+				return format::json($quota);
+			}
+
+			return $this->_lastError('Quota : no logged in');
 		}
 
-		return $this->_lastError('Quota : no logged in');
+		return $this->_lastError('Quota : no ready');
 	}
 
 	/* ** Récupère les entêtes des e-mails dans une intervalle.
@@ -275,25 +286,29 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si on récupère les entêtes sans erreur, la fonction _lastError() sinon.
 	* */
 	public function getMails(String $box, Int $start, Int $max) {
-		$mailbox = $this->_openBox($this->_target . $box);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target . $box);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			$check = imap_check($mailbox);
+			if ($this->_mboxIsOpen($mailbox)) {
+				$check = imap_check($mailbox);
 
-			$end = $max + $start;
+				$end = $max + $start;
 
-			if ($end > $check->Nmsgs) $end = $check->Nmsgs; 
+				if ($end > $check->Nmsgs) $end = $check->Nmsgs; 
 
-			$sequence = $start . ':' . $end;
+				$sequence = $start . ':' . $end;
 
-			$headers = imap_fetch_overview($mailbox, $sequence, 0);
+				$headers = imap_fetch_overview($mailbox, $sequence, 0);
 
-			imap_close($mailbox);
+				imap_close($mailbox);
 
-			return $this->_JSONResponse($headers);
+				return Format::json($headers);
+			}
+
+			return $this->_lastError('Get mails : no logged in');
 		}
 
-		return $this->_lastError('Get mails : no logged in');
+		return $this->_lastError('Get mails : no ready');
 	}
 	
 	/* ** Récupère un message dans une boîte mail, à partir de son uid.
@@ -304,17 +319,21 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si on récupère le message sans erreur, la fonction _lastError() sinon.
 	* */
 	public function getMessage(String $box, Int $uid) {
-		$mailbox = $this->_openBox($this->_target . $box);
+		if ($this->_isReady) {
+			$mailbox = $this->_openBox($this->_target . $box);
 
-		if ($this->_mboxIsOpen($mailbox)) {
-			$bodyMsg = imap_body($mailbox, $uid);
+			if ($this->_mboxIsOpen($mailbox)) {
+				$bodyMsg = imap_body($mailbox, $uid);
 
-			imap_close($mailbox);
+				imap_close($mailbox);
 
-			return $this->_JSONResponse($bodyMsg);
+				return Format::json($bodyMsg);
+			}
+
+			return $this->_lastError('Get message : no logged in');
 		}
 
-		return $this->_lastError('Get message : no logged in');
+		return $this->_lastError('Get message : no ready');
 	}
 }
 
