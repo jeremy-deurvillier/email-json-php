@@ -153,7 +153,7 @@ class EmailJSON {
 			$mailbox = $this->_openBox($this->_target);
 
 			if ($this->_mboxIsOpen($mailbox)) {
-				return Format::json('Connect : logged in');
+				return Format::json('Connect : logged in [' . $this->getEmail() . ']');
 			}
 
 			return ErrorManager::response('connect_fail');
@@ -169,7 +169,7 @@ class EmailJSON {
 			if ($this->_mboxIsOpen($this->mailbox)) {
 				$isClosed = imap_close($this->mailbox);
 
-				if ($isClosed) return Format::json($isClosed);
+				if ($isClosed) return Format::json('Disconnect : logged out [' . $this->getEmail() . ']');
 
 				return ErrorManager::response('disconnect_fail');
 			}
@@ -224,6 +224,41 @@ class EmailJSON {
 		return ErrorManager::response('no_ready');
 	}
 
+	/* ** Récupère des informations sur un dossier.
+	* Utilise imap_check() et imap_status().
+	*
+	* @param String folder Un nom de dossier.
+	*
+	* @return Array/Boolean/Null Retourne un tableau si aucune erreur, false si IMAP rencontre une erreur ou null si la connexion au serveur à échoué.
+	* */
+	private function folderInfos($folder) {
+		$decodedFolder = imap_utf7_decode($folder);
+		$box = explode('}', $decodedFolder)[1];
+		$tab = []; // Tableau à retourné
+
+		$mailbox = $this->_openBox($this->_target . $box);
+
+		if ($this->_mboxIsOpen($mailbox)) {
+			$checkFolder = imap_check($mailbox);
+			$statusFolder = imap_status($mailbox, $this->_target . $box, SA_ALL);
+
+			if ($checkFolder !== false && $statusFolder !== false) {
+				$tab['date'] = $checkFolder->Date;
+				$tab['folder'] = $box;
+				$tab['messages'] = $statusFolder->messages;
+				$tab['unseen'] = $statusFolder->unseen;
+				$tab['recent'] = $statusFolder->recent;
+				$tab['uidvalidity'] = $statusFolder->uidvalidity;
+
+				return $tab;
+			}
+
+			return false; // Erreur rencontrée par imap_check() ou imap_status()
+		}
+
+		return null; // Impossible de se connecter au serveur mails
+	}
+
 	/* ** Récupère les dossiers présents dans la boîte mails.
 	* 
 	* imap_getmailboxes() renvoie un tableau d'objets (les dossiers). Chaque objet (dossier) possède une clé "attributes".
@@ -242,39 +277,27 @@ class EmailJSON {
 	* @return Function La fonction _JSONResponse() si on récupère le tableau de dossier(s) sans erreur, la fonction _lastError() sinon.
 	* */
 	public function getFolders() {
+		$folders = null;
+		$foldersInfos = [];
+
 		if ($this->_isReady) {
 			if ($this->_mboxIsOpen($this->mailbox)) {
 				$folders = imap_getmailboxes($this->mailbox, $this->_target, '*');
 
 				if ($folders !== false) {
-					return Format::json($folders);
+					foreach ($folders as $key => $folder) {
+						$boxInfos = $this->folderInfos($folder->name);
+
+						if ($boxInfos === null) return ErrorManager::response('connect_fail');
+						if ($boxInfos === false) return ErrorManager::response('get_folder_infos_error');
+
+						if ($boxInfos) $foldersInfos[] = $boxInfos;
+					}
+
+					return Format::json($foldersInfos);
 				}
 
 				return ErrorManager::response('get_folders_error');
-			}
-
-			return ErrorManager::response('connect_fail');
-		}
-
-		return ErrorManager::response('no_ready');
-	}
-	
-	/* ** Vérifie les informations de la boîte mail courante.
-	* 
-	* @param String box Le nom de la boîte mail courante.
-	* */
-	public function check($box) {
-		if ($this->_isReady) {
-			$mailbox = $this->_openBox($this->_target . $box);
-
-			if ($this->_mboxIsOpen($mailbox)) {
-				$check = imap_check($mailbox);
-
-				if ($check !== false) {
-					return Format::json($check);
-				}
-
-				return ErrorManager::response('check_mailbox_fail');
 			}
 
 			return ErrorManager::response('connect_fail');
@@ -291,7 +314,7 @@ class EmailJSON {
 	*
 	* @return Function La fonction _JSONResponse() si on récupère les entêtes sans erreur, la fonction _lastError() sinon.
 	* */
-	public function getMails(String $box, Int $start, Int $max) {
+	public function getMessages(String $box, Int $start, Int $max) {
 		if ($this->_isReady) {
 			$mailbox = $this->_openBox($this->_target . $box);
 
@@ -326,7 +349,7 @@ class EmailJSON {
 	*
 	* @return Function La fonction _JSONResponse() si on récupère le message sans erreur, la fonction _lastError() sinon.
 	* */
-	public function getMessage(String $box, Int $uid) {
+	public function readMessage(String $box, Int $uid) {
 		if ($this->_isReady) {
 			$mailbox = $this->_openBox($this->_target . $box);
 
